@@ -1,0 +1,93 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+dist/
+downloads/
+.eggs/
+.eggs-info/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# Virtual environments
+.env
+.env.*
+.venv
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Project-local virtualenvs (poc)
+poc/Lib/
+poc/Include/
+poc/Scripts/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# PyCharm / JetBrains
+.idea/
+
+# VS Code
+.vscode/
+
+# Editors
+*.swp
+*~
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints
+
+# Logs and databases
+*.log
+*.sqlite3
+*.db
+
+# dotenv files (secrets)
+.env
+
+# Secrets / local config
+secrets.yml
+config/local_settings.py
+
+# Ignore certificate/key files
+*.pem
+*.key
+
+# Ignore build artifacts
+__pycache__/
+*.pyc
+
+# End of file

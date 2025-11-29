@@ -1,0 +1,13 @@
+langchain
+langchain-community
+langchain_openai
+openai
+python-dotenv
+langchain-pinecone
+langgraph
+fitz
+unstructured
+pdfminer
+pi_heif
+unstructured_inference
+pdf2image
