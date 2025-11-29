@@ -11,3 +11,5 @@ pdfminer
 pi_heif
 unstructured_inference
 pdf2image
+google-cloud-vision
+google-cloud-storage

@@ -10,7 +10,7 @@ load_dotenv()
 
 def setup_vector_store(docs):
 
-    splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    splitter = RecursiveCharacterTextSplitter(chunk_size=8000, chunk_overlap=200)
     chunks = splitter.split_documents(docs)
 
     embeddings = OpenAIEmbeddings(
