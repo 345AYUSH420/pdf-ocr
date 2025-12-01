@@ -12,8 +12,7 @@ from vector_store import setup_vector_store
 
 load_dotenv()
 
-# Load scanned PDF with OCR
-# docs = load_pdf_with_ocr("00000001.tif.pdf")
+
 load_pdf_with_vision_ocr(
     input_gcs_uri="gs://ocr-extraction-bucket/00000001.tif.pdf" ,
     output_gcs_uri= "gs://ocr-extracted-bucket/output/")
