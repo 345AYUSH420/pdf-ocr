@@ -3,6 +3,7 @@ import pytesseract
 from PIL import Image
 import io
 from langchain_core.documents import Document
+from google.cloud import storage
 
 
 # Update this path for Windows
@@ -28,3 +29,7 @@ def load_pdf_with_ocr(path):
         )
 
     return docs
+
+
+
+

@@ -23,16 +23,16 @@ def setup_vector_store(docs):
     index_name = "books"
 
 
-    print("index name:" , index_name)
+    # print("index name:" , index_name)
 
 
     index_exists = index_name in [i["name"] for i in pc.list_indexes()]
-    print("Index exists:", index_exists)
+    # print("Index exists:", index_exists)
 
 
     if not index_exists:
 
-        print("➡️ Creating new index & uploading embeddings (first run)...")
+        # print("➡️ Creating new index & uploading embeddings (first run)...")
         pc.create_index(
             name=index_name,
             dimension=1536,
@@ -46,11 +46,25 @@ def setup_vector_store(docs):
             namespace="default"
         )
     else:
-        print("➡️ Index exists — reusing existing vectors (no embedding).")
+        # print("➡️ Index exists — checking for new documents...")
         vectorstore = PineconeVectorStore.from_existing_index(
             embedding=embeddings,
             index_name=index_name,
             namespace="default"
         )
+        # Check if documents already exist before adding
+        # Get document count from index
+        index = pc.Index(index_name)
+        index_stats = index.describe_index_stats()
+        existing_count = index_stats.total_vector_count
+        new_count = len(chunks)
+        
+        if existing_count == 0 or new_count > 0:
+            if existing_count == 0:
+                print(f"📝 Adding {new_count} new chunks to index...")
+                vectorstore.add_documents(documents=chunks)
+            else:
+                print(f"⚠️ Index already has {existing_count} vectors. Skipping duplicates.")
+                print("   (Tip: Use unique document IDs or clear index if you want to re-upload)")
 
     return vectorstore.as_retriever(search_kwargs={"k": 5})
