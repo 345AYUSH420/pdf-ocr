@@ -44,9 +44,9 @@ env.bak/
 venv.bak/
 
 # Project-local virtualenvs (poc)
-poc/Lib/
-poc/Include/
-poc/Scripts/
+pc/Lib/
+pc/Include/
+pc/Scripts/
 
 # PyInstaller
 *.manifest

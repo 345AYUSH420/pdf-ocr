@@ -13,3 +13,8 @@ unstructured_inference
 pdf2image
 google-cloud-vision
 google-cloud-storage
+tiktoken
+fastapi
+uvicorn
+streamlit
+requests

@@ -2,6 +2,7 @@ from google.cloud import vision_v1 as vision
 from google.cloud import storage
 from langchain_core.documents import Document
 import json
+from typing import List, Optional
 
 
 def extract_filename(gcs_uri: str) -> str:
@@ -80,7 +81,7 @@ def read_ocr_output(output_gcs_uri: str) -> str:
     prefix = "/".join(output_gcs_uri.split("/")[3:])
 
     bucket = storage_client.bucket(bucket_name)
-    blobs = list(bucket.list_blobs(prefix=prefix))
+    blobs = sorted(list(bucket.list_blobs(prefix=prefix)), key=lambda b: b.name)
 
     full_text = ""
 
@@ -94,3 +95,47 @@ def read_ocr_output(output_gcs_uri: str) -> str:
                 full_text += annotation.get("text", "")
 
     return full_text
+
+
+def read_ocr_output_documents(
+    output_gcs_uri: str,
+    *,
+    source_uri: Optional[str] = None,
+) -> List[Document]:
+    """Read Vision async OCR output and return one Document per page response.
+
+    This is safer for embedding + retrieval than concatenating the entire PDF
+    into a single mega-string.
+    """
+    storage_client = storage.Client()
+
+    bucket_name = output_gcs_uri.split("/")[2]
+    prefix = "/".join(output_gcs_uri.split("/")[3:])
+
+    bucket = storage_client.bucket(bucket_name)
+    blobs = sorted(list(bucket.list_blobs(prefix=prefix)), key=lambda b: b.name)
+
+    docs: List[Document] = []
+    page_num = 0
+
+    for blob in blobs:
+        raw = json.loads(blob.download_as_bytes())
+        responses = raw.get("responses", [])
+
+        for res in responses:
+            annotation = res.get("fullTextAnnotation") or {}
+            text = (annotation.get("text") or "").strip()
+            if text:
+                docs.append(
+                    Document(
+                        page_content=text,
+                        metadata={
+                            "source": source_uri or output_gcs_uri,
+                            "blob": blob.name,
+                            "page": page_num,
+                        },
+                    )
+                )
+            page_num += 1
+
+    return docs
