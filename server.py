@@ -45,8 +45,8 @@ def _build_rag_chain():
     # If embeddings already exist in Pinecone, skip OCR + embedding work.
     # Set FORCE_REINDEX=1 to force OCR + (re)upload.
     force_reindex = _as_bool(os.getenv("FORCE_REINDEX"))
-    # Default OFF: if you already have embeddings, don't OCR again by mistake.
-    allow_ocr_fallback = _as_bool(os.getenv("ALLOW_OCR_FALLBACK", "0"))
+    # Default ON so first run can automatically create the index.
+    allow_ocr_fallback = _as_bool(os.getenv("ALLOW_OCR_FALLBACK", "1"))
 
     retriever = None
     if not force_reindex:
@@ -84,7 +84,7 @@ def _build_rag_chain():
 
     # LLM on OpenRouter (revert back to OpenRouter)
     llm = ChatOpenAI(
-        model=os.getenv("OPENROUTER_MODEL", "openai/gpt-4-turbo"),
+        model=os.getenv("OPENROUTER_MODEL", "openai/gpt-5.2"),
         max_tokens=int(os.getenv("MAX_TOKENS", "512")),
         openai_api_key=os.getenv("OPENROUTER_API_KEY"),
         openai_api_base=os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),

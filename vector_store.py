@@ -70,7 +70,7 @@ def setup_vector_store(
 
     # Embeddings on OpenRouter (revert back to OpenRouter)
     embeddings = OpenAIEmbeddings(
-        model="text-embedding-ada-002",
+        model="text-embedding-3-large",
         openai_api_base="https://openrouter.ai/api/v1",
         openai_api_key=os.getenv("OPENROUTER_API_KEY"),
         # Important: OpenRouter (and some OpenAI-compatible gateways) can error if
@@ -97,15 +97,15 @@ def setup_vector_store(
             )
 
         splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
-            model_name="text-embedding-ada-002",
-            chunk_size=4000,
+            model_name="text-embedding-3-large",
+            chunk_size=3000,
             chunk_overlap=200,
         )
         chunks = splitter.split_documents(docs)
 
         pc.create_index(
             name=index_name,
-            dimension=1536,
+            dimension=3072,
             metric="cosine",
             spec=ServerlessSpec(cloud="aws", region="us-east-1"),
         )
@@ -125,7 +125,7 @@ def setup_vector_store(
         # Only upload documents if provided (avoids OCR + embedding work on startup).
         if docs is not None:
             splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
-                model_name="text-embedding-ada-002",
+                model_name="text-embedding-3-large",
                 chunk_size=4000,
                 chunk_overlap=200,
             )
@@ -149,4 +149,5 @@ def setup_vector_store(
 
     # Keep k small to avoid blowing up the LLM prompt (OpenRouter free tiers can
     # have low prompt-token limits).
-    return vectorstore.as_retriever(search_kwargs={"k": 2})
+    print(vectorstore.as_retriever(search_kwargs={"k": 5}))
+    return vectorstore.as_retriever(search_kwargs={"k": 5})
