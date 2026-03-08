@@ -20,10 +20,23 @@ with col2:
     st.caption("Tip: start API first")
 
 
-def _call_api(question_text: str) -> str:
+def _call_api(question_text: str, history: list) -> str:
+    # Do not send the current question in the history array
+    history_payload = []
+    for msg in history:
+        # Avoid sending the very last message since it's the current question
+        if msg.get("content") != question_text: 
+            history_payload.append({
+                "role": msg["role"],
+                "content": msg["content"]
+            })
+
     resp = requests.post(
         f"{api_url.rstrip('/')}/ask",
-        json={"question": question_text},
+        json={
+            "question": question_text,
+            "history": history_payload
+        },
         timeout=120,
     )
     if resp.status_code != 200:
@@ -47,7 +60,7 @@ if user_msg:
     with st.chat_message("assistant"):
         try:
             with st.spinner("Thinking..."):
-                answer = _call_api(user_msg)
+                answer = _call_api(user_msg, st.session_state.messages)
             st.write(answer)
             st.session_state.messages.append({"role": "assistant", "content": answer})
         except Exception as e:

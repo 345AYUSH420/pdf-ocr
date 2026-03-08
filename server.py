@@ -219,14 +219,15 @@ from starlette.concurrency import run_in_threadpool
 
 from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda
+from langchain_core.messages import HumanMessage, AIMessage
 
 from vision_ocr_loader import load_pdf_with_vision_ocr, read_ocr_output_documents
 from vector_store import setup_vector_store
 
 from langchain_core.documents import Document
-from typing import Optional
+from typing import Optional, List
 
 app = FastAPI(title="Ayurveda PDF RAG API")
 rag_chain = None
@@ -316,24 +317,31 @@ def _build_rag_chain():
             (
                 "system",
                 """
-You are an expert in Ayurveda and Sanskrit medical literature.
+You are an expert in Ayurveda and Sanskrit medical literature functioning as an interactive diagnostic assistant.
 
-Use the provided context from Madhava Nidana to answer the question.
+Use the provided context from Madhava Nidana to help diagnose the user's condition based on their symptoms.
+The user may provide symptoms across multiple turns in the conversation history.
 
-If the symptoms partially match a known disease,
-infer the most likely Ayurvedic diagnosis.
+Rules:
+1. DO NOT provide a final diagnosis immediately based on 1 or 2 symptoms. You must first narrow down the possibilities.
+2. Carefully read the conversation history to see which symptoms the user has already CONFIRMED and which they have DENIED ("No").
+3. NEVER ask about a symptom the user has already denied or answered "No" to.
+4. If the user presents symptoms that could match multiple conditions, ask ONE YES/NO follow-up question about a NEW differentiating symptom mentioned in the context that has NOT been asked before.
+5. Keep asking ONE follow-up question per turn until you have enough information to confidently rule out alternative diseases.
+6. If the user answers "no" to a symptom, completely eliminate diseases requiring that symptom from your consideration.
+7. Only provide a final diagnosis when the confirmed symptoms strongly and uniquely point to a specific Ayurvedic disease, and alternative conditions are ruled out.
+8. Provide the final diagnosis and a brief explanation based ONLY on the context.
+9. If the symptoms are not found in the context at all, say 'Not found in the provided text.'
+10. Always answer in the same language as the user's latest question.
+11. Be conversational, empathetic, and concise.
 
-Answer clearly and concisely.
-
-If the answer cannot be found in the context,
-say: 'Not found in the provided text.'
-
-Always answer in the same language as the question.
+Context:\n{context}
 """
             ),
+            MessagesPlaceholder(variable_name="history"),
             (
                 "human",
-                "Question: {question}\n\nContext:\n{context}\n\nAnswer:"
+                "{question}"
             ),
         ]
     )
@@ -346,26 +354,19 @@ Always answer in the same language as the question.
                 """
 You are an expert in Ayurveda terminology.
 
-Extract symptoms or diseases from the user's question.
+Given the conversation history and the user's latest input, extract ALL confirmed symptoms and diseases the user is experiencing.
+If the user denies a symptom or says "No", DO NOT include it in the search query.
+If the user confirms a symptom asked by the assistant, INCLUDE IT along with previously mentioned symptoms.
 
 Return BOTH:
 1) Sanskrit Ayurvedic terms (Roman script)
-2) Important English keywords
+2) Important English keywords (only for CONFIRMED symptoms)
 
-Return them as a space separated search query.
-
-Examples:
-
-User: what is cough
-Output: kasa cough
-
-User: difficulty breathing loss of appetite pale skin weakness
-Output: svasa aruchi pandu breathing appetite pale weakness
-
-User: fever digestion issues
-Output: jwara agni fever digestion
+CRITICAL: Do NOT return symptoms the user has denied.
+Return them as a space-separated search query. DO NOT return anything else.
 """
             ),
+            MessagesPlaceholder(variable_name="history"),
             ("human", "{question}")
         ]
     )
@@ -375,8 +376,7 @@ Output: jwara agni fever digestion
         return expanded_query
 
     query_chain = (
-        RunnableLambda(lambda q: {"question": q})
-        | query_expansion_prompt
+        query_expansion_prompt
         | llm
         | StrOutputParser()
         | RunnableLambda(_log_and_return)
@@ -387,7 +387,8 @@ Output: jwara agni fever digestion
     rag = (
         {
             "context": query_chain | retriever | RunnableLambda(_format_context),
-            "question": RunnablePassthrough(),
+            "question": RunnableLambda(lambda x: x["question"]),
+            "history": RunnableLambda(lambda x: x.get("history", [])),
         }
         | answer_prompt
         | llm
@@ -397,12 +398,28 @@ Output: jwara agni fever digestion
     return rag
 
 
+class Message(BaseModel):
+    role: str
+    content: str
+
+
 class AskRequest(BaseModel):
     question: str = Field(..., min_length=1)
+    history: List[Message] = Field(default_factory=list)
 
 
 class AskResponse(BaseModel):
     answer: str
+
+
+def format_history(history_data: List[Message]):
+    messages = []
+    for msg in history_data:
+        if msg.role in ["user", "human"]:
+            messages.append(HumanMessage(content=msg.content))
+        elif msg.role in ["assistant", "ai"]:
+            messages.append(AIMessage(content=msg.content))
+    return messages
 
 
 @app.get("/health")
@@ -417,10 +434,14 @@ async def ask(payload: AskRequest):
         raise HTTPException(status_code=503, detail="RAG not ready")
 
     try:
+        inputs = {
+            "question": payload.question,
+            "history": format_history(payload.history)
+        }
 
         answer = await run_in_threadpool(
             rag_chain.invoke,
-            payload.question
+            inputs
         )
 
         return AskResponse(answer=answer)
